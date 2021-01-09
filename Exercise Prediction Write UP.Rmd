@@ -1,0 +1,105 @@
+---
+title: "Exercise Prediction Write Up"
+author: "MT"
+date: "1/8/2021"
+output: html_document
+
+---
+#Overview
+#Background
+#Library Setup
+```{r}
+library(knitr)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(randomForest)
+library(corrplot)
+set.seed(301)
+```
+
+#Data Loading and Exploratory Analysis
+
+```{r}
+library(xlsx); library(caret)
+training<- read.csv(file = "pml-training.csv")
+test<- read.csv("pml-testing.csv")
+head(training)
+dim(training)
+summary(training)
+```
+#Partioning Training Data
+```{r}
+intrain<- createDataPartition(training$classe, p=0.7, list=F)
+trainset<- training[intrain, ]
+testset<- training[-intrain,]
+dim(trainset)
+dim(testset)
+```
+Cleaning up NA values, near zero variance and ID variables present within dataset.
+```{r}
+nzv<- nearZeroVar(trainset)
+trainset<- trainset[,-nzv]
+testset<- testset[,-nzv]
+dim(testset)
+dim(trainset)
+```
+Removing varibles that are filled with NA
+```{r}
+allna<- sapply(trainset, function(x) mean(is.na(x))) > 0.95
+trainset<- trainset[,allna==F]
+testset<- testset[,allna==F]
+head(trainset)
+```
+
+Removing identification of the variables
+```{r}
+trainset<- trainset[,-(1:5)]
+testset<- testset[,-(1:5)]
+dim(testset)
+dim(trainset)
+head(trainset)
+```
+#Correaltion Analysis of the Varibles
+```{r}
+cmatrix<- cor(trainset[,-54])
+corrplot(cmatrix, order= "FPC", method = "color", type= "upper", tl.cex = 0.8, tl.col = rgb(0,0,0))
+```
+Based on the observations, the darker the colour the stronger their correlation. Using PCA can help further narrow down which variable to eliminate. However, for this assignment we will skip that step as there aren't too many that are correlated.
+
+#Prediction Model Building
+##Random Forest
+Training the model
+```{r}
+set.seed(100)
+controlrf<- trainControl(method="cv", number=10, verboseIter = F)
+modrf<- train(classe~., data= trainset, method = "rf", trControl=controlrf)
+modrf$finalModel
+```
+Predicting using the RF model
+```{r}
+predictrf<- predict(modrf,newdata= testset)
+matrixrf<- confusionMatrix(as.factor(predictrf), as.factor(testset$classe))
+matrixrf
+```
+Analysis of Matrix
+```{r}
+plot(matrixrf$table, col=matrixrf$byClass, main= paste("RF- Accuracy =", round(matrixrf$overall['Accuracy'],4)))
+```
+##Decision Tree
+Creating Model using DT on training set
+```{r}
+set.seed(300)
+moddt<- rpart(classe~., data=trainset, method="class")
+fancyRpartPlot(moddt)
+```
+Using model on test set
+```{r}
+predictdt<- predict(moddt, newdata= testset, type="class")
+matrixdt<- confusionMatrix(predictdt,as.factor(testset$classe))
+matrixdt
+plot(matrixdt$table, col=matrixdt$byClass, main= paste("DT- Accuracy =", round(matrixdt$overall['Accuracy'], 4)))
+```
+##Generalised Boosted Model (GBM)
+
