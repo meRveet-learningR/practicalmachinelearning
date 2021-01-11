@@ -90,7 +90,7 @@ plot(matrixrf$table, col=matrixrf$byClass, main= paste("RF- Accuracy =", round(m
 ##Decision Tree
 Creating Model using DT on training set
 ```{r}
-set.seed(300)
+set.seed(100)
 moddt<- rpart(classe~., data=trainset, method="class")
 fancyRpartPlot(moddt)
 ```
@@ -102,4 +102,24 @@ matrixdt
 plot(matrixdt$table, col=matrixdt$byClass, main= paste("DT- Accuracy =", round(matrixdt$overall['Accuracy'], 4)))
 ```
 ##Generalised Boosted Model (GBM)
+```{r}
+set.seed(100)
+controlgbm<- trainControl(method="repeatedcv", number = 3 , repeats=1)
+modgbm<- train(classe~., data=trainset,method="gbm", trControl=controlgbm, verbose=F)
+modgbm$finalModel
+
+#predicting model
+predictgbm<- predict(modgbm, newdata=testset)
+matrixgbm<- confusionMatrix(predictgbm, as.factor(testset$classe))
+matrixgbm
+
+#ploting gbm model
+plot(matrixgbm$table, col=matrixgbm$byClass, main=paste("GBM- Accuracy =", round(matrixgbm$overall['Accuracy'],4)))
+```
+Comparing the accuracy between each of the model generated, random forest seems to be the one with the highest accuracy. Hence, it will be selected as the model to test on the test set data. 
+
+```{r}
+predicttest<- predict(modrf, newdata=test)
+predicttest
+```
 
